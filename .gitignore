@@ -1,0 +1,22 @@
+.idea/
+.vscode/
+*.sw*
+*.iml
+# The file containing environment variables
+**/venv
+
+# Ignore Logs
+logs.
+*.log
+
+# other
+
+__pycache__
+Thumbs.db
+.DS_Store
+probe.py
+
+# config  files
+auth.py
+config.py
+*.env
