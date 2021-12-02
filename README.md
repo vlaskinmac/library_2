@@ -11,7 +11,6 @@ This script is written as part of the task of the courses [Devman](https://dvmn.
 
 - Downloads the picture from the cover of the books.
 
-- Loads book covers.
 
 ## Getting Started
 
