@@ -27,7 +27,6 @@ def download_txt(content_book, count, payload, folder='books'):
     content_book['book_path'] = file_path
     with open(file_path, 'w') as file:
         file.write(response_download.text)
-        return content_book
 
 
 def get_tail_url(url):
@@ -49,18 +48,17 @@ def download_image(content_book, book_id, folder):
     content_book['img_src'] = file_path
     with open(file_path, 'wb') as image:
         image.write(response_download_image.content)
-    return generates_info_books(content_book)
 
 
 def parse_book_page(soup):
     host = 'https://tululu.org/'
-    title_book_tag = soup.find(id='content').find('h1').get_text(strip=True)
-    genre_book = [genre.text for genre in soup.find('span', class_='d_book').find_all('a')]
-    comments = soup.find_all(class_="texts")
-    image_link = soup.find(class_='bookimage').find('img')['src']
+    title_book_tag = soup.select_one("#content h1").get_text(strip=True)
+    genre_book = soup.select_one('span.d_book a')['title'].split(' -')[0]
+    comments = soup.select(".texts")
+    image_link = soup.select_one('.bookimage img')['src']
     url_image = urljoin(host, image_link)
     title_book, author = title_book_tag.split('::')
-    comments_book = [comment_tag.find('span', class_="black").get_text(strip=True) for comment_tag in comments]
+    comments_book = [comment_tag.select_one(".black").get_text(strip=True) for comment_tag in comments]
     content_book = {
         'title': title_book.strip(),
         'author': author,
@@ -88,7 +86,7 @@ def get_arguments():
 def get_link_book():
     genre = 55
     content = []
-    for page in range(1, 5):
+    for page in range(1, 2):
         url = f"https://tululu.org/l{genre}/{page}"
         response_link_book = requests.get(url)
         response_link_book.raise_for_status()
@@ -100,8 +98,8 @@ def get_id_book_page():
     content = get_link_book()
     pre_links = []
     for line in content:
-        first_book = line.find_all(class_="d_book")
-        pre_links.append([indexes.find("a")["href"] for indexes in first_book])
+        first_book = line.select(".d_book")
+        pre_links.append([indexes.select_one("a")["href"] for indexes in first_book])
     return pre_links
 
 
@@ -119,6 +117,7 @@ def generates_info_books(content_book):
             'img_src': content_book['img_src'],
             'book_path': content_book['book_path'],
             'comments': content_book['comments'],
+            'genres': content_book['genres'],
     }
 
 
@@ -140,15 +139,17 @@ def main():
         url_title_book = f"https://tululu.org/b{str(*re.findall(r'[0-9]+', str(book_id)))}"
         response_title_book = requests.get(url_title_book)
         try:
-            try:
-                response_title_book.raise_for_status()
-                check_for_redirect(response_title_book)
-            except HTTPError as exc:
-                logging.warning(exc)
+            response_title_book.raise_for_status()
+            check_for_redirect(response_title_book)
+        except HTTPError as exc:
+            logging.warning(exc)
+        try:
             soup = BeautifulSoup(response_title_book.text, "lxml")
             content_book = parse_book_page(soup)
             download_txt(content_book, count, payload, folder="books")
-            json_books.append(download_image(content_book, payload['id'], "image"))
+
+            download_image(content_book, payload['id'], "image")
+            json_books.append(generates_info_books(content_book))
         except HTTPError as exc:
             logging.warning(exc)
 
@@ -160,6 +161,11 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
 
 
 
