@@ -17,16 +17,27 @@ def check_for_redirect(response):
         raise HTTPError(f'{response.history} - {HTTPError.__name__}')
 
 
-def download_txt(content_book, count, payload, folder='books'):
+def create_file_path(folder, file):
+    cwd = os.getcwd()
+    os.makedirs(f"books_content/{folder}", exist_ok=True)
+    common_path = os.path.abspath(os.path.join(cwd, "books_content"))
+    books_path = os.path.abspath(os.path.join(common_path, folder))
+    file_path = os.path.abspath(os.path.join(books_path, file))
+    return file_path
+
+
+def download_txt(content_book, count, payload, folder, skip=False):
     url_download = f'https://tululu.org/txt.php'
-    response_download = requests.get(url_download, params=payload)
-    check_for_redirect(response_download)
-    os.makedirs(folder, exist_ok=True)
-    filename = sanitize_filename(f"{count}.{content_book['title'].strip()}.txt")
-    file_path = os.path.join(folder, filename)
-    content_book['book_path'] = file_path
-    with open(file_path, 'w') as file:
-        file.write(response_download.text)
+    if not skip:
+        response_download = requests.get(url_download, params=payload)
+        check_for_redirect(response_download)
+        filename = sanitize_filename(f"{count}.{content_book['title'].strip()}.txt")
+        file_path = create_file_path(folder, filename)
+        content_book['book_path'] = file_path
+        with open(file_path, 'w') as file:
+            file.write(response_download.text)
+    else:
+        content_book['book_path'] = " "
 
 
 def get_tail_url(url):
@@ -37,17 +48,19 @@ def get_tail_url(url):
     return url_name, url_tail
 
 
-def download_image(content_book, book_id, folder):
-    os.makedirs(folder, exist_ok=True)
+def download_image(content_book, book_id, folder, skip=False):
     url_name, url_tail = get_tail_url(url=content_book['image_link'])
-    response_download_image = requests.get(content_book['image_link'])
-    response_download_image.raise_for_status()
-    check_for_redirect(response_download_image)
-    filename = sanitize_filename(f"{book_id}{url_tail}")
-    file_path = os.path.join(folder, filename)
-    content_book['img_src'] = file_path
-    with open(file_path, 'wb') as image:
-        image.write(response_download_image.content)
+    if not skip:
+        response_download_image = requests.get(content_book['image_link'])
+        response_download_image.raise_for_status()
+        check_for_redirect(response_download_image)
+        filename = sanitize_filename(f"{book_id}{url_tail}")
+        file_path = create_file_path(folder, filename)
+        content_book['img_src'] = file_path
+        with open(file_path, 'wb') as image:
+            image.write(response_download_image.content)
+    else:
+        content_book['img_src'] = " "
 
 
 def parse_book_page(soup):
@@ -74,19 +87,36 @@ def get_arguments():
         description='The code collects book data from an online library.'
     )
     parser.add_argument(
-        '-s', '--start_id', type=int, help="Set the initial id for book use arguments: '-s or --start_id'"
+        '-s', '--start_page', type=int, required=True,
+        help="Set the initial page, use arguments: '-s or --start_page'"
     )
     parser.add_argument(
-        '-e', '--end_id', type=int, help="Set the end id for book use arguments: '-e or --end_id'"
+        '-e', '--end_page', type=int, default=701,
+        help="Install the last page, use arguments: '-e or --end_page'"
+    )
+    parser.add_argument(
+        '-d', '--dest_folder', action='store_const', const=True,
+        help="Set path to the directory with parsing results: '-d or --dest_folder'"
+    )
+    parser.add_argument(
+        '-j', '--json_path', help="Set the path to the json file, use the argument: '-j or --json_path'"
+    )
+    parser.add_argument(
+        '-t', '--skip_txt', action='store_const', const=True,
+        help="Set not to download books, use argument: '-t or --skip_txt'"
+    )
+    parser.add_argument(
+        '-i', '--skip_imgs', action='store_const', const=True,
+        help="Set not to download images, use argument: '-i or --skip_imgs'"
     )
     args = parser.parse_args()
-    return args.start_id, args.end_id
+    return args.start_page, args.end_page, args.dest_folder, args.json_path, args.skip_txt, args.skip_imgs
 
 
-def get_link_book():
+def get_link_book(start, end):
     genre = 55
     content = []
-    for page in range(1, 2):
+    for page in range(start, end+1):
         url = f"https://tululu.org/l{genre}/{page}"
         response_link_book = requests.get(url)
         response_link_book.raise_for_status()
@@ -94,8 +124,8 @@ def get_link_book():
     return content
 
 
-def get_id_book_page():
-    content = get_link_book()
+def get_id_book_page(start, end):
+    content = get_link_book(start, end)
     pre_links = []
     for line in content:
         first_book = line.select(".d_book")
@@ -103,8 +133,8 @@ def get_id_book_page():
     return pre_links
 
 
-def get_links_book():
-    indexies_book = get_id_book_page()
+def get_links_book(start, end):
+    indexies_book = get_id_book_page(start, end)
     for id_book in indexies_book:
         for index_book in id_book:
             yield index_book
@@ -129,12 +159,16 @@ def main():
         format='%(asctime)s - [%(levelname)s] - %(funcName)s() - [line %(lineno)d] - %(message)s',
     )
 
-    # start, end = get_arguments()
-    start=1
-    end=7
     count = 1
     json_books = []
-    for book_id in get_links_book():
+    start, end, path_dir, json_path, skip_txt, skip_imgs = get_arguments()
+    json_path_file = 'books_content/'
+    if path_dir:
+        print(os.path.abspath('books_content'))
+    if json_path:
+        json_path_file = json_path
+    links_book = get_links_book(start, end)
+    for book_id in links_book:
         payload = {'id': str(*re.findall(r'[0-9]+', str(book_id)))}
         url_title_book = f"https://tululu.org/b{str(*re.findall(r'[0-9]+', str(book_id)))}"
         response_title_book = requests.get(url_title_book)
@@ -143,24 +177,28 @@ def main():
             check_for_redirect(response_title_book)
         except HTTPError as exc:
             logging.warning(exc)
+        skiptxt = False
+        skip_img = False
         try:
             soup = BeautifulSoup(response_title_book.text, "lxml")
             content_book = parse_book_page(soup)
-            download_txt(content_book, count, payload, folder="books")
-
-            download_image(content_book, payload['id'], "image")
+            if skip_txt:
+                skiptxt = True
+            download_txt(content_book, count, payload, "books_txt", skip=skiptxt)
+            if not skip_imgs:
+                skip_img = True
+            download_image(content_book, payload['id'], "image", skip=skip_img)
             json_books.append(generates_info_books(content_book))
         except HTTPError as exc:
             logging.warning(exc)
-
         count += 1
-
-    with open('filename.json', 'w', encoding='utf8') as json_file:
+    with open(f'{json_path_file}filejson.json', 'w', encoding='utf8') as json_file:
         json.dump(json_books, json_file, ensure_ascii=False, indent=3)
 
 
 if __name__ == "__main__":
     main()
+
 
 
 
