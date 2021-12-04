@@ -36,8 +36,8 @@ pip3 install -r requirements.txt
 ## Launch code
 
 #### Arguments
-- Set the initial id for book (it`s argument required) use arguments: **-s** or **--start_id**
-- Set the end id for book use arguments: **-e** or **--end_id**
+- Set the initial id for book (it`s argument required) use arguments: **-s** or **--start_page**
+- Set the end id for book use arguments: **-e** or **--end_page**
 - To call help, use the required arguments **-h** or **--help**
 - Set path to the directory with parsing results: **-d** or **--dest_folder**
 - Set the path to the json file, use the argument: **-j** or **--json_path**
