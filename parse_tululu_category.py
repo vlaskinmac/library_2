@@ -169,8 +169,8 @@ def main():
         json_path_file = json_path
     identifier_book = get_identifier_book(start, end)
     for book_id in identifier_book:
-        payload = {'id': str(*re.findall(r'[0-9]+', str(book_id)))}
-        url_title_book = f"https://tululu.org/b{str(*re.findall(r'[0-9]+', str(book_id)))}"
+        payload = {'id': str(*re.findall(r'[0-9]+', book_id))}
+        url_title_book = f"https://tululu.org/b{str(*re.findall(r'[0-9]+', book_id))}"
         response_title_book = requests.get(url_title_book)
         try:
             response_title_book.raise_for_status()
