@@ -126,18 +126,18 @@ def get_link_book(start, end):
 
 def get_id_book_page(start, end):
     content = get_link_book(start, end)
-    pre_links = []
+    collections_id_for_books = []
     for line_book in content:
         collections_books = line_book.select(".d_book")
-        pre_links.append([indexes.select_one("a")["href"] for indexes in collections_books])
-    return pre_links
+        collections_id_for_books.append([identifier.select_one("a")["href"] for identifier in collections_books])
+    return collections_id_for_books
 
 
-def get_links_book(start, end):
+def get_identifier_book(start, end):
     indexies_book = get_id_book_page(start, end)
     for id_book in indexies_book:
-        for index_book in id_book:
-            yield index_book
+        for identifier_book in id_book:
+            yield identifier_book
 
 
 def generates_info_books(content_book):
@@ -167,8 +167,8 @@ def main():
         print(os.path.abspath('books_content'))
     if json_path:
         json_path_file = json_path
-    links_book = get_links_book(start, end)
-    for book_id in links_book:
+    identifier_book = get_identifier_book(start, end)
+    for book_id in identifier_book:
         payload = {'id': str(*re.findall(r'[0-9]+', str(book_id)))}
         url_title_book = f"https://tululu.org/b{str(*re.findall(r'[0-9]+', str(book_id)))}"
         response_title_book = requests.get(url_title_book)
