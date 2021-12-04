@@ -26,12 +26,12 @@ def create_file_path(folder, file):
     return file_path
 
 
-def download_txt(content_book, count, payload, folder, skip=False):
+def download_txt(content_book, book_id, payload, folder, skip=False):
     url_download = f'https://tululu.org/txt.php'
     if not skip:
         response_download = requests.get(url_download, params=payload)
         check_for_redirect(response_download)
-        filename = sanitize_filename(f"{count}.{content_book['title'].strip()}.txt")
+        filename = sanitize_filename(f"{book_id}.{content_book['title'].strip()}.txt")
         file_path = create_file_path(folder, filename)
         content_book['book_path'] = file_path
         with open(file_path, 'w') as file:
@@ -168,8 +168,8 @@ def main():
     if json_path:
         json_path_file = json_path
     identifier_book = get_identifier_book(start, end)
-    for book_id in identifier_book:
-        book_id = str(*re.findall(r'[0-9]+', book_id))
+    for not_parse_book_id in identifier_book:
+        book_id = str(*re.findall(r'[0-9]+', not_parse_book_id))
         payload = {'id': book_id}
         url_book = f"https://tululu.org/b{book_id}"
         response_title_book = requests.get(url_book)
@@ -178,17 +178,15 @@ def main():
             check_for_redirect(response_title_book)
         except HTTPError as exc:
             logging.warning(exc)
-        skiptxt = False
-        skip_img = False
         try:
             soup = BeautifulSoup(response_title_book.text, "lxml")
             content_book = parse_book_page(soup)
             if skip_txt:
-                skiptxt = True
-            download_txt(content_book, count, payload, "books_txt", skip=skiptxt)
+                skip_text_file = True
+            download_txt(content_book, book_id, payload, "books_txt", skip=skip_text_file)
             if not skip_imgs:
-                skip_img = True
-            download_image(content_book, payload['id'], "image", skip=skip_img)
+                skip_image_file = True
+            download_image(content_book, payload['id'], "image", skip=skip_image_file)
             json_books.append(generates_info_books(content_book))
         except HTTPError as exc:
             logging.warning(exc)
