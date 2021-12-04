@@ -171,8 +171,8 @@ def main():
     for book_id in identifier_book:
         book_id = str(*re.findall(r'[0-9]+', book_id))
         payload = {'id': book_id}
-        url_title_book = f"https://tululu.org/b{book_id}"
-        response_title_book = requests.get(url_title_book)
+        url_book = f"https://tululu.org/b{book_id}"
+        response_title_book = requests.get(url_book)
         try:
             response_title_book.raise_for_status()
             check_for_redirect(response_title_book)
