@@ -127,9 +127,9 @@ def get_link_book(start, end):
 def get_id_book_page(start, end):
     content = get_link_book(start, end)
     pre_links = []
-    for line in content:
-        first_book = line.select(".d_book")
-        pre_links.append([indexes.select_one("a")["href"] for indexes in first_book])
+    for line_book in content:
+        collections_books = line_book.select(".d_book")
+        pre_links.append([indexes.select_one("a")["href"] for indexes in collections_books])
     return pre_links
 
 
