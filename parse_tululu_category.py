@@ -167,8 +167,6 @@ def main():
 
     json_books = []
     start, end, user_path, json_path, skip_text_file, skip_image_file = get_arguments()
-    print(start, end, user_path, json_path, skip_text_file, skip_image_file)
-
     if user_path:
         user_path = os.path.abspath(user_path)
         os.chdir(user_path)
