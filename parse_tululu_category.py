@@ -98,7 +98,7 @@ def get_arguments():
         help="Set the initial page, use arguments: '-s or --start_page'"
     )
     parser.add_argument(
-        '-e', '--end_page', type=int,
+        '-e', '--end_page', default=get_last_page(), type=int,
         help="Install the last page, use arguments: '-e or --end_page'"
     )
     parser.add_argument(
@@ -170,8 +170,6 @@ def main():
     if user_path:
         user_path = os.path.abspath(user_path)
         os.chdir(user_path)
-    if not end:
-        end = get_last_page()
     identifier_book = get_link_book(start, end)
     for not_parse_book_id in identifier_book:
         book_id = str(*re.findall(r'[0-9]+', not_parse_book_id))
