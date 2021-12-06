@@ -141,22 +141,22 @@ def get_link_book(start, end):
         response_link_book = requests.get(url)
         response_link_book.raise_for_status()
         content.append(BeautifulSoup(response_link_book.text, "lxml"))
-    indexes_book = get_id_book_page(content)
-    identifier_book = get_identifier_book(indexes_book)
+    get_book_page_ids = get_id_book_page(content)
+    identifier_book = get_identifier_book(get_book_page_ids)
     return identifier_book
 
 
 def get_id_book_page(content):
-    collections_id_for_books = []
-    for line_book in content:
-        collections_books = line_book.select(".d_book")
-        collections_id_for_books.append([identifier.select_one("a")["href"] for identifier in collections_books])
-    return collections_id_for_books
+    collections_id_books = []
+    for extract_book_id in content:
+        collections_books = extract_book_id.select(".d_book")
+        collections_id_books.append([identifier.select_one("a")["href"] for identifier in collections_books])
+    return collections_id_books
 
 
 def get_identifier_book(indexies_book):
-    for id_book in indexies_book:
-        for identifier_book in id_book:
+    for book_id in indexies_book:
+        for identifier_book in book_id:
             yield identifier_book
 
 
@@ -173,9 +173,9 @@ def main():
     if user_path:
         user_path = os.path.abspath(user_path)
         os.chdir(user_path)
-    identifier_book = get_link_book(start, end)
-    for not_parse_book_id in identifier_book:
-        book_id = str(*re.findall(r'[0-9]+', not_parse_book_id))
+    identifier_books = get_link_book(start, end)
+    for parse_book_id in identifier_books:
+        book_id = re.search(r'\d+', parse_book_id).group()
         payload = {'id': book_id}
         url_book = f"https://tululu.org/b{book_id}"
         book_response = requests.get(url_book)
@@ -183,14 +183,12 @@ def main():
             book_response.raise_for_status()
             soup = BeautifulSoup(book_response.text, "lxml")
             content_book, url_image = parse_book_page(soup)
-            collections_books = adds_path_in_content_book(content_book, book_id, payload, user_path, url_image, skip_text_file, skip_image_file)
-            # if not skip_text_file:
-            #     collections_books = download_txt(content_book, book_id, payload, "books_txt", user_path)
-            # if not skip_image_file:
-            #     collections_books = download_image(content_book, url_image, payload['id'], "image", user_path)
+            collections_books = get_content_book(
+                content_book, book_id, payload, user_path, url_image, skip_text_file, skip_image_file)
             json_books.append(collections_books)
         except HTTPError as exc:
             logging.warning(exc)
+
     with open(f'{json_path}filejson.json', 'w', encoding='utf8') as json_file:
         json.dump(json_books, json_file, ensure_ascii=False, indent=3)
 
