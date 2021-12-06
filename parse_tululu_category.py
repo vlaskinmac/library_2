@@ -31,15 +31,38 @@ def create_file_path(folder, file, user_path):
     return file_path
 
 
-def download_txt(content_book, book_id, payload, folder, user_path):
+def download_txt(content_book, book_id, payload, user_path):
     url_download = f'https://tululu.org/txt.php'
     response_download = requests.get(url_download, params=payload)
     check_for_redirect(response_download)
     filename = sanitize_filename(f"{book_id}.{content_book['title'].strip()}.txt")
-    file_path = create_file_path(folder, filename, user_path)
+    file_path = create_file_path("books_txt", filename, user_path)
     with open(file_path, 'w') as file:
         file.write(response_download.text)
-    adds_path_in_content_book(content_book, file_path_book=file_path, file_path_image=None)
+    return file_path
+
+
+def download_image(url_image, book_id, user_path):
+    url_name, url_tail = get_tail_url(url=url_image)
+    response_download_image = requests.get(url_image)
+    response_download_image.raise_for_status()
+    check_for_redirect(response_download_image)
+    filename = sanitize_filename(f"{book_id}{url_tail}")
+    file_path = create_file_path("image", filename, user_path)
+    with open(file_path, 'wb') as image:
+        image.write(response_download_image.content)
+    return file_path
+
+
+def get_content_book(
+        content_book, book_id, payload, user_path, url_image, skip_text_file, skip_image_file):
+    if not skip_text_file:
+        file_path_book = download_txt(content_book, book_id, payload, user_path)
+        content_book['book_path'] = file_path_book
+
+    if not skip_image_file:
+        file_path_image = download_image(url_image, book_id, user_path)
+        content_book['img_src'] = file_path_image
     return content_book
 
 
@@ -49,26 +72,6 @@ def get_tail_url(url):
     _, url_file_name = os.path.split(path_clean)
     url_name, url_tail = os.path.splitext(url_file_name)
     return url_name, url_tail
-
-
-def download_image(content_book, url_image, book_id, folder, user_path):
-    url_name, url_tail = get_tail_url(url=url_image)
-    response_download_image = requests.get(url_image)
-    response_download_image.raise_for_status()
-    check_for_redirect(response_download_image)
-    filename = sanitize_filename(f"{book_id}{url_tail}")
-    file_path = create_file_path(folder, filename, user_path)
-    with open(file_path, 'wb') as image:
-        image.write(response_download_image.content)
-    adds_path_in_content_book(content_book, file_path_book=None, file_path_image=file_path)
-    return content_book
-
-
-def adds_path_in_content_book(content_book, file_path_book, file_path_image):
-    if file_path_book:
-        content_book['book_path'] = file_path_book
-    if file_path_image:
-        content_book['img_src'] = file_path_image
 
 
 def parse_book_page(soup):
@@ -180,10 +183,11 @@ def main():
             book_response.raise_for_status()
             soup = BeautifulSoup(book_response.text, "lxml")
             content_book, url_image = parse_book_page(soup)
-            if not skip_text_file:
-                collections_books = download_txt(content_book, book_id, payload, "books_txt", user_path)
-            if not skip_image_file:
-                collections_books = download_image(content_book, url_image, payload['id'], "image", user_path)
+            collections_books = adds_path_in_content_book(content_book, book_id, payload, user_path, url_image, skip_text_file, skip_image_file)
+            # if not skip_text_file:
+            #     collections_books = download_txt(content_book, book_id, payload, "books_txt", user_path)
+            # if not skip_image_file:
+            #     collections_books = download_image(content_book, url_image, payload['id'], "image", user_path)
             json_books.append(collections_books)
         except HTTPError as exc:
             logging.warning(exc)
