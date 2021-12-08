@@ -27,12 +27,13 @@ def download_txt(content_book, book_id, payload, user_path):
     os.makedirs(books_path, exist_ok=True)
     filename = sanitize_filename(f"{book_id}.{content_book['title'].strip()}.txt")
     file_path = os.path.relpath(os.path.join(books_path, filename))
+    content_book['book_path'] = file_path
     with open(file_path, 'w') as file:
         file.write(response_download.text)
     return file_path
 
 
-def download_image(url_image, book_id, user_path):
+def download_image(content_book, url_image, book_id, user_path):
     url_name, url_tail = get_tail_url(url=url_image)
     response_download_image = requests.get(url_image)
     response_download_image.raise_for_status()
@@ -42,21 +43,10 @@ def download_image(url_image, book_id, user_path):
     os.makedirs(image_path, exist_ok=True)
     filename = sanitize_filename(f"{book_id}{url_tail}")
     file_path = os.path.relpath(os.path.join(image_path, filename))
+    content_book['img_src'] = file_path
     with open(file_path, 'wb') as image:
         image.write(response_download_image.content)
     return file_path
-
-
-def get_content_book(
-        content_book, book_id, payload, user_path, url_image, skip_text_file, skip_image_file):
-    if not skip_text_file:
-        file_path_book = download_txt(content_book, book_id, payload, user_path)
-        content_book['book_path'] = file_path_book
-
-    if not skip_image_file:
-        file_path_image = download_image(url_image, book_id, user_path)
-        content_book['img_src'] = file_path_image
-    return content_book
 
 
 def get_tail_url(url):
@@ -158,9 +148,14 @@ def main():
             book_response.raise_for_status()
             soup = BeautifulSoup(book_response.text, "lxml")
             content_book, url_image = parse_book_page(soup)
-            collections_books = get_content_book(
-                content_book, book_id, payload, user_path, url_image, skip_text_file, skip_image_file)
-            json_books.append(collections_books)
+            if not skip_text_file:
+                file_path_book = download_txt(content_book, book_id, payload, user_path)
+                content_book['book_path'] = file_path_book
+
+            if not skip_image_file:
+                file_path_image = download_image(content_book, url_image, book_id, user_path)
+                content_book['img_src'] = file_path_image
+            json_books.append(content_book)
         except HTTPError as exc:
             logging.warning(exc)
 
