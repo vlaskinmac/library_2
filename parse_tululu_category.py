@@ -88,7 +88,8 @@ def get_arguments():
         help="Install the last page, use arguments: '-e or --end_page'"
     )
     parser.add_argument(
-        '-d', '--dest_folder', default="./", action='store_const', const=True, help="Set path to the directory with parsing results: '-d or --dest_folder'"
+        '-d', '--dest_folder', default="./", action='store_const', const=True,
+        help="Set path to the directory with parsing results: '-d or --dest_folder'"
     )
     parser.add_argument(
         '-j', '--json_path', default='./', help="Set the path to the json file, use the argument: '-j or --json_path'"
@@ -165,4 +166,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
