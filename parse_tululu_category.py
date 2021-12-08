@@ -18,25 +18,15 @@ def check_for_redirect(response):
         raise HTTPError(f'{response.history} - {HTTPError.__name__}')
 
 
-def create_file_path(folder, file, user_path):
-    cwd = os.getcwd()
-    if user_path:
-        cwd = user_path
-        os.makedirs(f"{cwd}/books_content/{folder}", exist_ok=True)
-    else:
-        os.makedirs(f"books_content/{folder}", exist_ok=True)
-    common_path = os.path.relpath(os.path.join(cwd, "books_content"))
-    books_path = os.path.relpath(os.path.join(common_path, folder))
-    file_path = os.path.relpath(os.path.join(books_path, file))
-    return file_path
-
-
 def download_txt(content_book, book_id, payload, user_path):
     url_download = f'https://tululu.org/txt.php'
     response_download = requests.get(url_download, params=payload)
     check_for_redirect(response_download)
+    os.makedirs(user_path, exist_ok=True)
+    books_path = os.path.relpath(os.path.join(user_path, "books_txt"))
+    os.makedirs(books_path, exist_ok=True)
     filename = sanitize_filename(f"{book_id}.{content_book['title'].strip()}.txt")
-    file_path = create_file_path("books_txt", filename, user_path)
+    file_path = os.path.relpath(os.path.join(books_path, filename))
     with open(file_path, 'w') as file:
         file.write(response_download.text)
     return file_path
@@ -47,8 +37,11 @@ def download_image(url_image, book_id, user_path):
     response_download_image = requests.get(url_image)
     response_download_image.raise_for_status()
     check_for_redirect(response_download_image)
+    os.makedirs(user_path, exist_ok=True)
+    image_path = os.path.relpath(os.path.join(user_path, "image"))
+    os.makedirs(image_path, exist_ok=True)
     filename = sanitize_filename(f"{book_id}{url_tail}")
-    file_path = create_file_path("image", filename, user_path)
+    file_path = os.path.relpath(os.path.join(image_path, filename))
     with open(file_path, 'wb') as image:
         image.write(response_download_image.content)
     return file_path
@@ -105,10 +98,10 @@ def get_arguments():
         help="Install the last page, use arguments: '-e or --end_page'"
     )
     parser.add_argument(
-        '-d', '--dest_folder', help="Set path to the directory with parsing results: '-d or --dest_folder'"
+        '-d', '--dest_folder', default="./", action='store_const', const=True, help="Set path to the directory with parsing results: '-d or --dest_folder'"
     )
     parser.add_argument(
-        '-j', '--json_path', default='books_content/', help="Set the path to the json file, use the argument: '-j or --json_path'"
+        '-j', '--json_path', default='./', help="Set the path to the json file, use the argument: '-j or --json_path'"
     )
     parser.add_argument(
         '-t', '--skip_txt', action='store_const', const=True,
@@ -133,31 +126,16 @@ def get_last_page():
     return int(*last_page)
 
 
-def get_link_book(start, end):
+def get_book_page_ids(start, end):
     genre = 55
-    content = []
-    for page in range(start, end+1):
+    ids = []
+    for page in range(start, end + 1):
         url = f"https://tululu.org/l{genre}/{page}"
         response_link_book = requests.get(url)
         response_link_book.raise_for_status()
-        content.append(BeautifulSoup(response_link_book.text, "lxml"))
-    get_book_page_ids = get_id_book_page(content)
-    identifier_book = get_identifier_book(get_book_page_ids)
-    return identifier_book
-
-
-def get_id_book_page(content):
-    collections_id_books = []
-    for extract_book_id in content:
-        collections_books = extract_book_id.select(".d_book")
-        collections_id_books.append([identifier.select_one("a")["href"] for identifier in collections_books])
-    return collections_id_books
-
-
-def get_identifier_book(indexies_book):
-    for book_id in indexies_book:
-        for identifier_book in book_id:
-            yield identifier_book
+        soup = BeautifulSoup(response_link_book.text, "lxml")
+        ids += [tag.select_one("a")["href"] for tag in soup.select(".d_book")]
+    return ids
 
 
 def main():
@@ -170,10 +148,7 @@ def main():
 
     json_books = []
     start, end, user_path, json_path, skip_text_file, skip_image_file = get_arguments()
-    if user_path:
-        user_path = os.path.abspath(user_path)
-        os.chdir(user_path)
-    identifier_books = get_link_book(start, end)
+    identifier_books = get_book_page_ids(start, end)
     for parse_book_id in identifier_books:
         book_id = re.search(r'\d+', parse_book_id).group()
         payload = {'id': book_id}
